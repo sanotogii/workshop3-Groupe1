@@ -1,14 +1,15 @@
-   version: 2
-   updates:
-     - package-ecosystem: "maven"
-       directories:
-         - "/"
-         - "/filieres-service"
-         - "/etudiants-service"
-       schedule:
-         interval: "daily"
-       open-pull-requests-limit: 10
-     - package-ecosystem: "github-actions"
-       directory: "/"
-       schedule:
-         interval: "weekly"
+version: 2
+
+updates:
+  - package-ecosystem: maven
+    directories:
+      - "/"
+      - "/filieres-service"
+      - "/etudiants-service"
+    schedule:
+      interval: daily
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
