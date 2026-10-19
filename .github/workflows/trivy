@@ -1,0 +1,18 @@
+
+      - name: Préparer les dépendances Maven
+        run: |
+          chmod +x mvnw
+          ./mvnw -B -DskipTests package
+
+      - name: Scan des dépendances (Trivy)
+        run: |
+          docker run --rm \
+            -v "$PWD:/src" \
+            -v "$HOME/.m2:/root/.m2" \
+            aquasec/trivy:latest fs \
+            --scanners vuln \
+            --severity HIGH,CRITICAL \
+            --exit-code 1 \
+            --format table \
+            --output /src/trivy-report.txt \
+            /src
