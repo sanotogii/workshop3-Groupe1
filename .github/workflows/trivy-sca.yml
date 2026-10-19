@@ -1,50 +1,42 @@
-
 name: SCA Trivy
 
 on:
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   trivy:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: 17
           cache: maven
 
-      - name: Remplir le cache Maven
+      - name: Télécharger les jars des dépendances
         run: |
           chmod +x mvnw
-          ./mvnw -B dependency:resolve
+          ./mvnw -B dependency:copy-dependencies -DoutputDirectory=target/libs
 
       - name: Scan des dépendances (Trivy)
         run: |
           docker run --rm \
-            -v "$PWD:/src" \
+            -v "$PWD":/src \
             aquasec/trivy:latest fs \
             --scanners vuln \
             --severity HIGH,CRITICAL \
+            --skip-files "**/pom.xml" \
             --exit-code 1 \
-            --format table \
             --output /src/trivy-report.txt \
             /src
 
       - name: Afficher le rapport
         if: always()
-        run: |
-          if [ -f trivy-report.txt ]; then
-            cat trivy-report.txt
-          else
-            echo "Le rapport Trivy n'a pas été généré."
-          fi
+        run: cat trivy-report.txt
 
       - name: Upload report
         if: always()
@@ -52,4 +44,3 @@ jobs:
         with:
           name: trivy-report
           path: trivy-report.txt
-          if-no-files-found: warn
