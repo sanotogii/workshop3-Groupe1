@@ -1,0 +1,32 @@
+   name: SCA Dependency-Check
+
+   on:
+     push:
+       branches: [ main ]
+     pull_request:
+       branches: [ main ]
+
+   jobs:
+     sca:
+       runs-on: ubuntu-latest
+       steps:
+         - uses: actions/checkout@v4
+
+         - uses: actions/setup-java@v4
+           with:
+             distribution: temurin
+             java-version: 17
+             cache: maven
+
+         - name: Rendre mvnw exécutable
+           run: chmod +x mvnw
+
+         - name: Dependency-Check
+           run: ./mvnw -B org.owasp:dependency-check-maven:aggregate -Dnvd.api.key=${{ secrets.NVD_API_KEY }}
+
+         - name: Upload report
+           if: always()
+           uses: actions/upload-artifact@v4
+           with:
+             name: dependency-check-report
+             path: target/dependency-check-report.*
