@@ -24,9 +24,16 @@ jobs:
         run: chmod +x mvnw
 
       - name: Dependency-Check
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: |
-          ./mvnw -B org.owasp:dependency-check-maven:aggregate \
-            -Dnvd.api.key="${{ secrets.NVD_API_KEY }}"
+          MVN_NVD_OPTS=()
+          if [ -n "$NVD_API_KEY" ]; then
+            MVN_NVD_OPTS+=("-Dnvd.api.key=$NVD_API_KEY")
+          else
+            MVN_NVD_OPTS+=("-Dnvd.api.delay=10000")
+          fi
+          ./mvnw -B org.owasp:dependency-check-maven:aggregate "${MVN_NVD_OPTS[@]}"
 
       - name: Upload report
         if: always()
