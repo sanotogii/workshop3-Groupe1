@@ -1,4 +1,3 @@
-
 name: SCA Dependency-Check
 
 on:
@@ -6,10 +5,15 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   sca:
     runs-on: ubuntu-latest
+    # Le premier telechargement complet de la base NVD (~410 000 CVE) prend ~2h
+    timeout-minutes: 330
+    env:
+      NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
 
     steps:
       - uses: actions/checkout@v4
@@ -20,20 +24,35 @@ jobs:
           java-version: '17'
           cache: maven
 
+      - name: Restaurer la base NVD
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: nvd-db-${{ github.run_id }}
+          restore-keys: nvd-db-
+
       - name: Rendre mvnw exécutable
         run: chmod +x mvnw
 
-      - name: Dependency-Check
-        env:
-          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+      - name: Mettre a jour la base NVD
+        timeout-minutes: 300
         run: |
-          MVN_NVD_OPTS=()
-          if [ -n "$NVD_API_KEY" ]; then
-            MVN_NVD_OPTS+=("-Dnvd.api.key=$NVD_API_KEY")
-          else
-            MVN_NVD_OPTS+=("-Dnvd.api.delay=10000")
+          if [ -z "$NVD_API_KEY" ]; then
+            echo "::error::Secret NVD_API_KEY absent (Settings > Secrets and variables > Actions)"
+            exit 1
           fi
-          ./mvnw -B org.owasp:dependency-check-maven:aggregate "${MVN_NVD_OPTS[@]}"
+          ./mvnw -B org.owasp:dependency-check-maven:update-only -DnvdApiKeyEnvironmentVariable=NVD_API_KEY
+
+      # Sauvegarde juste apres la mise a jour : le scan qui suit peut echouer
+      # (CVE trouvees) et le cache doit quand meme etre conserve
+      - name: Sauvegarder la base NVD
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: nvd-db-${{ github.run_id }}
+
+      - name: Dependency-Check
+        run: ./mvnw -B org.owasp:dependency-check-maven:aggregate -DautoUpdate=false
 
       - name: Upload report
         if: always()
